@@ -31,6 +31,8 @@ import static org.junit.Assert.assertTrue;
 import com.google.cloud.spanner.Dialect;
 import com.google.cloud.teleport.spanner.common.Type;
 import com.google.cloud.teleport.spanner.ddl.ForeignKey.ReferentialAction;
+import com.google.cloud.teleport.spanner.ddl.GraphElementTable.GraphNodeTableReference;
+import com.google.cloud.teleport.spanner.ddl.GraphElementTable.LabelToPropertyDefinitions;
 import com.google.cloud.teleport.spanner.ddl.IndexColumn.IndexColumnsBuilder;
 import com.google.cloud.teleport.spanner.ddl.IndexColumn.Order;
 import com.google.cloud.teleport.spanner.proto.ExportProtos.Export;
@@ -39,8 +41,10 @@ import com.google.common.collect.HashMultimap;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
+import javafx.util.Pair;
 import org.junit.Test;
 
 /** Test coverage for {@link Ddl}. */
@@ -626,6 +630,93 @@ public class DdlTest {
     // TODO(gunjj) Consider moving FK ON DELETE CASCADE test from simple()/pgSimple() to this method
     // for PG and for a separate such method for GSQL
     assertNotNull(foreignKey.hashCode());
+  }
+
+  @Test
+  public void testPropertyGraph() {
+    PropertyGraph.PropertyDeclaration propertyDeclaration1 =
+        new PropertyGraph.PropertyDeclaration("dummy-prop-name", "dummy-prop-type");
+    PropertyGraph.PropertyDeclaration propertyDeclaration2 =
+        new PropertyGraph.PropertyDeclaration("aliased-prop-name", "dummy-prop-type");
+
+    ImmutableList<String> propertyDeclsLabel1 =
+        ImmutableList.copyOf(Arrays.asList(propertyDeclaration1.name, propertyDeclaration2.name));
+    PropertyGraph.GraphElementLabel label1 =
+        new PropertyGraph.GraphElementLabel("dummy-label-name1", propertyDeclsLabel1);
+
+    GraphElementTable.LabelToPropertyDefinitions labelToPropertyDefinitions1 =
+        new LabelToPropertyDefinitions(label1.name,  ImmutableList.of(
+            new Pair<>("dummy-prop-name",  "dummy-prop-name"),
+            new Pair<>("aliased-prop-name",
+                "CONCAT(CAST(test_col AS STRING), \":\", \"dummy-column\")")));
+
+    PropertyGraph.GraphElementLabel label2 =
+        new PropertyGraph.GraphElementLabel("dummy-label-name2", ImmutableList.of());
+    GraphElementTable.LabelToPropertyDefinitions labelToPropertyDefinitions2 =
+        new LabelToPropertyDefinitions(label2.name,  ImmutableList.of());
+
+    PropertyGraph.GraphElementLabel label3 =
+        new PropertyGraph.GraphElementLabel("dummy-label-name3", ImmutableList.of());
+    GraphElementTable.LabelToPropertyDefinitions labelToPropertyDefinitions3 =
+        new LabelToPropertyDefinitions(label3.name,  ImmutableList.of());
+
+
+
+    // Node tables
+    GraphElementTable.Builder testNodeTable =
+        GraphElementTable.builder()
+            .baseTableName("base-table")
+            .name("node-alias")
+            .kind(GraphElementTable.Kind.NODE)
+            .keyColumns(ImmutableList.of("primary-key"))
+            .labelToPropertyDefinitions(ImmutableList.of(labelToPropertyDefinitions1,
+                labelToPropertyDefinitions2));
+
+
+    // Edge tables
+    GraphElementTable.Builder testEdgeTable =
+        GraphElementTable.builder()
+            .baseTableName("edge-base-table")
+            .name("edge-alias")
+            .kind(GraphElementTable.Kind.EDGE)
+            .keyColumns(ImmutableList.of("edge-primary-key"))
+            .sourceNodeTable(new GraphNodeTableReference(
+                "base-table",
+                ImmutableList.of("node-key"),
+                ImmutableList.of("source-edge-key")))
+            .targetNodeTable(new GraphNodeTableReference(
+                "base-table",
+                ImmutableList.of("other-node-key"),
+                ImmutableList.of("dest-edge-key")))
+            .labelToPropertyDefinitions(ImmutableList.of(labelToPropertyDefinitions3));
+
+
+    PropertyGraph.Builder propertyGraph =
+        PropertyGraph.builder()
+            .name("test-graph")
+            .addLabel(label1)
+            .addLabel(label2)
+            .addLabel(label3)
+            .addPropertyDeclaration(propertyDeclaration1)
+            .addPropertyDeclaration(propertyDeclaration2)
+            .addNodeTable(testNodeTable.autoBuild())
+            .addEdgeTable(testEdgeTable.autoBuild());
+
+    // EDGE TABLES(\nedge-base-table AS edge-alias\n KEY (edge-primary-key)\nSOURCE KEY(source-edge-key) REFERENCES base-table DESTINATION KEY(dest-edge-key) REFERENCES base-table\nLABEL dummy-label-name3 NO PROPERTIES);
+    assertThat(propertyGraph.build().prettyPrint(),
+        equalToCompressingWhiteSpace("CREATE PROPERTY GRAPH test-graph "
+            + "NODE TABLES(\n"
+            + "base-table AS node-alias\n"
+            + " KEY (primary-key)\n"
+            + "LABEL dummy-label-name1 "
+            + "PROPERTIES(dummy-prop-name, CONCAT(CAST(test_col AS STRING), \":\", \"dummy-column\") AS aliased-prop-name)\n"
+            + "LABEL dummy-label-name2 NO PROPERTIES)\n"
+            + "EDGE TABLES(\n"
+            + "edge-base-table AS edge-alias\n"
+            + " KEY (edge-primary-key)\n"
+            + "SOURCE KEY(source-edge-key) REFERENCES base-table DESTINATION KEY(dest-edge-key) REFERENCES base-table\n"
+            + "LABEL dummy-label-name3 NO PROPERTIES"
+            + ");"));
   }
 
   @Test

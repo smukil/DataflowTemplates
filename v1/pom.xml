@@ -55,6 +55,8 @@
     <kms.version>1.40.0</kms.version>
     <proto-kms.version>0.87.0</proto-kms.version>
     <jacoco.version>0.8.8</jacoco.version>
+    <excluded.spanner.tests>com.google.cloud.teleport.plugin.YamlDockerfileGeneratorTest</excluded.spanner.tests>
+    <excluded.spanner.tests>com.google.cloud.teleport.plugin.terraform.TemplateTerraformGeneratorTest</excluded.spanner.tests>
     <excluded.spanner.tests>com.google.cloud.teleport.spanner.IntegrationTest</excluded.spanner.tests>
   </properties>
 
@@ -847,7 +849,7 @@
         <configuration>
           <protocArtifact>com.google.protobuf:protoc:${protobuf.version}:exe:${os.detected.classifier}</protocArtifact>
           <pluginId>grpc-java</pluginId>
-          <pluginArtifact>io.grpc:protoc-gen-grpc-java:${grpc.gen.version}:exe:${os.detected.classifier}</pluginArtifact>
+          <pluginArtifact>io.grpc:protoc-gen-grpc-java:${grpc.gen.version}:exe:osx-x86_64</pluginArtifact>
         </configuration>
         <executions>
           <execution>

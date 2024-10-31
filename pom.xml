@@ -76,7 +76,7 @@
     <re2j.version>1.6</re2j.version>
     <slf4j.version>1.7.36</slf4j.version>
     <snakeyaml.version>2.0</snakeyaml.version>
-    <snappy.version>1.1.10.4</snappy.version>
+    <snappy.version>1.1.10.5</snappy.version>
     <spotless-maven-plugin.version>2.40.0</spotless-maven-plugin.version>
     <surefire.version>2.21.0</surefire.version>
     <truth.version>1.1.5</truth.version>
@@ -740,7 +740,6 @@
     <module>it</module>
     <module>lt</module>
     <module>v1</module>
-    <module>v2</module>
     <module>structured-logging</module>
     <module>plaintext-logging</module>
     <module>python</module>

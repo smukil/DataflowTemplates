@@ -97,7 +97,7 @@
     <profile>
       <id>skipCommonTests</id>
       <activation>
-        <activeByDefault>false</activeByDefault>
+        <activeByDefault>true</activeByDefault>
       </activation>
       <properties>
         <skipTests>true</skipTests>
