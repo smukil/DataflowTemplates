@@ -481,6 +481,7 @@ public class Ddl implements Serializable {
 
     private Map<String, Table> tables = Maps.newLinkedHashMap();
     private Map<String, Model> models = Maps.newLinkedHashMap();
+    private Map<String, PropertyGraph> property_graphs = Maps.newLinkedHashMap();
     private Map<String, View> views = Maps.newLinkedHashMap();
     private Map<String, ChangeStream> changeStreams = Maps.newLinkedHashMap();
     private Map<String, Sequence> sequences = Maps.newLinkedHashMap();
@@ -531,6 +532,10 @@ public class Ddl implements Serializable {
 
     public void addModel(Model model) {
       models.put(model.name().toLowerCase(), model);
+    }
+
+    public void addPropertyGraph(PropertyGraph graph) {
+      property_graphs.put(graph.name().toLowerCase(), graph);
     }
 
     public boolean hasModel(String name) {
