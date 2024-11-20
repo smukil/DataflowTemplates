@@ -51,6 +51,8 @@ import java.util.Queue;
 import java.util.Set;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.values.KV;
+import org.json.JSONArray;
+import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -103,6 +105,10 @@ public class InformationSchemaScanner {
     }
     if (placementsSupported()) {
       listPlacements(builder);
+    }
+    if (isPropertyGraphSupported()) {
+      listPropertyGraphs(builder);
+      listPropertyGraphPropertyDeclarations(builder);
     }
     Map<String, NavigableMap<String, Index.Builder>> indexes = Maps.newHashMap();
     listIndexes(indexes);
@@ -893,6 +899,82 @@ public class InformationSchemaScanner {
   private boolean isModelSupported() {
     return dialect == Dialect.GOOGLE_STANDARD_SQL;
   }
+
+  private boolean isPropertyGraphSupported() {
+    return dialect == Dialect.GOOGLE_STANDARD_SQL;
+  }
+
+  private void listPropertyGraphs(Ddl.Builder builder) {
+    ResultSet resultSet =
+        context.executeQuery(
+            Statement.of(
+                "SELECT t.property_graph_schema, t.property_graph_name "
+                + " FROM information_schema.property_graphs AS t "
+                + " WHERE t.property_graph_schema NOT IN ('INFORMATION_SCHEMA', 'SPANNER_SYS')"));
+
+    while (resultSet.next()) {
+      String propertyGraphName =
+          getQualifiedName(resultSet.getString(0), resultSet.getString(1));
+      LOG.debug("Schema PropertyGraph {}", propertyGraphName);
+      System.out.println("Created propertyGraph: " + propertyGraphName);
+      builder.createPropertyGraph(propertyGraphName).endPropertyGraph();
+    }
+  }
+
+  private void listPropertyGraphPropertyDeclarations(Ddl.Builder builder) {
+    ResultSet resultSet =
+        context.executeQuery(
+            Statement.of(
+                "SELECT t.property_graph_schema, t.property_graph_name, "
+                    + "t.property_graph_metadata_json.propertyDeclarations "
+                    + "FROM information_schema.property_graphs AS t "
+                    + "WHERE t.property_graph_schema NOT IN ('INFORMATION_SCHEMA', 'SPANNER_SYS')"));
+
+    while (resultSet.next()) {
+      String propertyGraphSchema = resultSet.getString(0);
+      String propertyGraphName = resultSet.getString(1);
+      String propertyGraphNameQualified = getQualifiedName(propertyGraphSchema, propertyGraphName);
+      String propertyDeclarationsJson = resultSet.getJson(2);
+
+      LOG.debug("Schema PropertyGraph {}", propertyGraphNameQualified);
+      System.out.println("Created propertyGraph: " + propertyGraphNameQualified);
+
+
+      try {
+        JSONArray propertyDeclarationsArray = new JSONArray(propertyDeclarationsJson);
+
+        // Iterate through the property declarations array
+        for (int i = 0; i < propertyDeclarationsArray.length(); i++) {
+          JSONObject propertyDeclaration = propertyDeclarationsArray.getJSONObject(i);
+
+          // Extract individual fields from the JSON object
+          String name = propertyDeclaration.getString("name");
+          String type = propertyDeclaration.getString("type");
+
+          // Example: Add property declarations to the builder (replace with your actual logic)
+          builder
+              .createPropertyGraph(propertyGraphNameQualified)
+              .addPropertyDeclaration(new PropertyGraph.PropertyDeclaration(name, type))
+              .endPropertyGraph();
+        }
+      } catch (Exception e) {
+        LOG.error("Error parsing property declarations JSON: {}", e.getMessage());
+      }
+    }
+  }
+
+  // public void listPropertyGraphPropertyDeclarations(Ddl.Builder builder) {
+  //   ResultSet resultSet =
+  //       context.executeQuery(
+  //           Statement.of(
+  //               "SELECT t.property_graph_schema, t.property_graph_name, t.property_graph_metadata_json.propertyDeclarations "
+  //                   + " FROM information_schema.property_graphs AS t "
+  //                   + " WHERE t.property_graph_schema NOT IN ('INFORMATION_SCHEMA', 'SPANNER_SYS')"));
+  //
+  //   while (resultSet.next()) {
+  //
+  //   }
+  // }
 
   private void listModels(Ddl.Builder builder) {
     ResultSet resultSet =

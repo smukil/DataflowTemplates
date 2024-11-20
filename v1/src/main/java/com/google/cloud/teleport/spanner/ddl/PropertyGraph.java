@@ -47,6 +47,14 @@ public abstract class PropertyGraph implements Serializable {
   }
 
   public abstract ImmutableList<PropertyDeclaration> propertyDeclarations();
+  public PropertyDeclaration getPropertyDeclaration(String givenPropertyDeclarationName) {
+    for (PropertyDeclaration propertyDeclaration : propertyDeclarations()) {
+      if (givenPropertyDeclarationName.equals(propertyDeclaration.name)) {
+        return propertyDeclaration;
+      }
+    }
+    return null;
+  }
 
   public static class GraphElementLabel {
     public GraphElementLabel(String name, ImmutableList<String> properties) {

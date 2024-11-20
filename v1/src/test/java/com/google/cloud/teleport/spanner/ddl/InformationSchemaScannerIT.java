@@ -23,6 +23,7 @@ import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.nullValue;
 import static org.hamcrest.Matchers.sameInstance;
 import static org.hamcrest.text.IsEqualCompressingWhiteSpace.equalToCompressingWhiteSpace;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 
 import com.google.cloud.spanner.BatchClient;
@@ -368,6 +369,34 @@ public class InformationSchemaScannerIT {
             "endpoint=\"//aiplatform.googleapis.com/projects/span-cloud-testing/locations/us-central1/endpoints/4608339105032437760\""));
 
     assertThat(ddl.prettyPrint(), equalToCompressingWhiteSpace(modelDef));
+  }
+
+  @Test
+  public void simplePropertyGraph() throws Exception {
+    String tableDef =
+        "CREATE TABLE NodeTest (\n"
+            + "  Id INT64 NOT NULL,\n"
+            + ") PRIMARY KEY(Id)";
+    String propertyGraphDef =
+        "CREATE PROPERTY GRAPH testGraph\n"
+            + "  NODE TABLES(\n"
+            + "    NodeTest\n"
+            + "      KEY(Id)\n"
+            + "      LABEL Test PROPERTIES(\n"
+            + "        Id))";
+
+    SPANNER_SERVER.createDatabase(dbId, Arrays.asList(tableDef, propertyGraphDef));
+    Ddl ddl = getDatabaseDdl();
+
+    assertThat(ddl.allTables(), hasSize(1));
+    assertThat(ddl.table("NodeTest"), notNullValue());
+    assertThat(ddl.propertyGraphs(), hasSize(1));
+
+    PropertyGraph testGraph = ddl.propertyGraph("testGraph");
+    assertEquals(testGraph.name(), "testGraph");
+    assertThat(testGraph.propertyDeclarations(), hasSize(1));
+
+    assertThat(testGraph.getPropertyDeclaration("Id"), notNullValue());
   }
 
   @Test
